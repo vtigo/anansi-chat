@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ANANSI Chat</title>
+</head>
+<body>
+    <h1>ANANSI Chat</h1>
+    
+    <div id="chat-container">
+        <div id="chat-messages" style="height: 400px; overflow-y: scroll; border: 1px solid #ccc; margin-bottom: 10px; padding: 10px;"></div>
+        
+        <div id="user-input">
+            <input type="text" id="username-input" placeholder="Your username" style="margin-right: 10px;">
+            <input type="text" id="message-input" placeholder="Type your message..." style="width: 60%;">
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const chatMessages = document.getElementById('chat-messages');
+        const usernameInput = document.getElementById('username-input');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+
+        // WebSocket connection
+        let socket;
+        
+        // Connect to WebSocket server
+        function connectWebSocket() {
+            // Create WebSocket connection using the same host as the page
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            socket = new WebSocket(wsUrl);
+            
+            // Connection opened
+            socket.addEventListener('open', function (event) {
+                appendMessage('System', 'Connected to chat server');
+            });
+            
+            // Listen for messages
+            socket.addEventListener('message', function (event) {
+                const messageData = JSON.parse(event.data);
+                appendMessage(messageData.username, messageData.message);
+            });
+            
+            // Connection closed
+            socket.addEventListener('close', function (event) {
+                appendMessage('System', 'Disconnected from chat server');
+                // Try to reconnect after 5 seconds
+                setTimeout(connectWebSocket, 5000);
+            });
+            
+            // Connection error
+            socket.addEventListener('error', function (event) {
+                appendMessage('System', 'Error connecting to chat server');
+            });
+        }
+        
+        // Append message to chat
+        function appendMessage(username, message) {
+            const messageElement = document.createElement('div');
+            messageElement.innerHTML = `<strong>${username}:</strong> ${message}`;
+            chatMessages.appendChild(messageElement);
+            // Auto scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Send message
+        function sendMessage() {
+            const username = usernameInput.value.trim();
+            const message = messageInput.value.trim();
+            
+            if (username === '' || message === '') {
+                alert('Please enter both username and message');
+                return;
+            }
+            
+            const messageData = {
+                username: username,
+                message: message
+            };
+            
+            // Send message if socket is connected
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify(messageData));
+                messageInput.value = '';
+            } else {
+                appendMessage('System', 'Not connected to server');
+            }
+        }
+        
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Connect when page loads
+        window.addEventListener('load', connectWebSocket);
+    </script>
+</body>
+</html>
